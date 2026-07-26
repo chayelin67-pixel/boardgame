@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>보드게임 대여소</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- 상단 헤더 -->
+  <header class="topbar">
+    <div class="brand">
+      <svg class="icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="5"/><circle cx="8.5" cy="8.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="8.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="8.5" cy="15.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/></svg>
+      <span>보드게임 대여소</span>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-stats" id="openStatsBtn">
+        <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="19" x2="6" y2="11"/><line x1="12" y1="19" x2="12" y2="6"/><line x1="18" y1="19" x2="18" y2="14"/></svg>
+        통계
+      </button>
+      <button class="btn btn-add" id="openAddGameBtn">
+        <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        새 게임 추가
+      </button>
+    </div>
+  </header>
+
+  <!-- 쉬는 시간 표시줄 -->
+  <section class="recess-bar">
+    <div class="recess-block">
+      <div class="recess-label">현재 시각</div>
+      <div class="recess-value" id="recessClock">--:--</div>
+    </div>
+    <div class="recess-block">
+      <div class="recess-label">남은 쉬는 시간</div>
+      <div class="recess-value" id="recessCountdown">--:--</div>
+    </div>
+    <div class="recess-alert" id="recessAlert" hidden>
+      <svg class="icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4.5l8.5 14.5H3.5z"/><line x1="12" y1="10" x2="12" y2="13.5"/><circle cx="12" cy="16.3" r="0.2" fill="currentColor" stroke="none"/></svg>
+      <span id="recessAlertText">4교시 수업 준비하세요</span>
+    </div>
+    <button class="recess-edit-btn" id="editRecessBtn" type="button">
+      <svg class="icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><polyline points="12 7.5 12 12 15.5 14"/></svg>
+      쉬는 시간 설정
+    </button>
+  </section>
+
+  <!-- 검색 & 필터 -->
+  <section class="toolbar">
+    <div class="search-box">
+      <svg class="icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><line x1="15.3" y1="15.3" x2="20" y2="20"/></svg>
+      <input class="search-input" id="searchInput" type="text" placeholder="보드게임 이름으로 검색하기" autocomplete="off">
+      <button class="search-kb-btn" id="openSearchKeyboardBtn" type="button" title="터치 키보드로 입력">
+        <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><line x1="6.5" y1="9" x2="6.5" y2="9"/><line x1="10" y1="9" x2="10" y2="9"/><line x1="13.5" y1="9" x2="13.5" y2="9"/><line x1="17" y1="9" x2="17" y2="9"/><line x1="6.5" y1="12.5" x2="6.5" y2="12.5"/><line x1="10" y1="12.5" x2="10" y2="12.5"/><line x1="13.5" y1="12.5" x2="13.5" y2="12.5"/><line x1="17" y1="12.5" x2="17" y2="12.5"/><line x1="7" y1="16" x2="17" y2="16"/></svg>
+      </button>
+      <button class="search-clear" id="clearSearchBtn" hidden type="button">
+        <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="filters">
+      <button class="chip active" data-filter="all">전체</button>
+      <button class="chip" data-filter="available">대여 가능</button>
+      <button class="chip" data-filter="rented">대여중</button>
+    </div>
+  </section>
+
+  <!-- 게임 카드 그리드 -->
+  <main class="grid" id="gameGrid"></main>
+  <p class="empty-msg" id="emptyMsg" hidden>검색 결과가 없어요</p>
+
+</div>
+
+<!-- ================= 대여 모달 ================= -->
+<div class="overlay" id="rentModal" hidden>
+  <div class="modal">
+    <button class="modal-close" data-close>
+      <svg class="icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+    </button>
+    <h2>게임 대여하기</h2>
+    <div class="rent-game-preview" id="rentGamePreview"></div>
+
+    <div class="field">
+      <label>대여 시간</label>
+      <div class="stepper">
+        <button class="step-btn" id="minusMinBtn">
+          <svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <div class="step-value" id="rentMinutesVal">15분</div>
+        <button class="step-btn" id="plusMinBtn">
+          <svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <p class="field-hint">모둠 선택 또는 번호 선택 중 하나를 골라주세요</p>
+
+    <div class="field">
+      <label>모둠 선택</label>
+      <div class="preset-row" id="groupRow"></div>
+    </div>
+
+    <div class="field">
+      <label>번호 선택 (1~25번 중 최대 5명)</label>
+      <div class="preset-row" id="numberRow"></div>
+    </div>
+
+    <button class="btn btn-primary btn-big" id="confirmRentBtn">
+      <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="5 13 10 18 19 7"/></svg>
+      대여 시작하기
+    </button>
+  </div>
+</div>
+
+<!-- ================= 게임 추가 모달 ================= -->
+<div class="overlay" id="addGameModal" hidden>
+  <div class="modal">
+    <button class="modal-close" data-close>
+      <svg class="icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+    </button>
+    <h2 id="addGameModalTitle">새 보드게임 추가</h2>
+
+    <div class="field">
+      <label>게임 이름</label>
+      <div class="name-input">
+        <svg class="icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1-4.2L15.8 5a1.6 1.6 0 0 1 2.3 0l1 1a1.6 1.6 0 0 1 0 2.3L8.2 19 4 20z"/><line x1="14.2" y1="6.7" x2="17.3" y2="9.8"/></svg>
+        <input type="text" id="newGameNameInput" placeholder="게임 이름을 입력해주세요" autocomplete="off">
+        <button class="field-kb-btn" id="openGameNameKeyboardBtn" type="button" title="터치 키보드로 입력">
+          <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><line x1="6.5" y1="9" x2="6.5" y2="9"/><line x1="10" y1="9" x2="10" y2="9"/><line x1="13.5" y1="9" x2="13.5" y2="9"/><line x1="17" y1="9" x2="17" y2="9"/><line x1="6.5" y1="12.5" x2="6.5" y2="12.5"/><line x1="10" y1="12.5" x2="10" y2="12.5"/><line x1="13.5" y1="12.5" x2="13.5" y2="12.5"/><line x1="17" y1="12.5" x2="17" y2="12.5"/><line x1="7" y1="16" x2="17" y2="16"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>사진 올리기 (선택)</label>
+      <label class="upload-btn">
+        <svg class="icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5a1.5 1.5 0 0 1 1.5-1.5H8l1.2-1.8h5.6L16 7h2.5A1.5 1.5 0 0 1 20 8.5v9A1.5 1.5 0 0 1 18.5 19h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.2"/></svg>
+        사진 선택하기
+        <input type="file" id="imageUploadInput" accept="image/*" hidden>
+      </label>
+      <div class="upload-preview" id="uploadPreview" hidden></div>
+    </div>
+
+    <div class="field">
+      <label>카드 색상</label>
+      <div class="color-grid" id="colorGrid"></div>
+    </div>
+
+    <div class="field">
+      <label>최대 대여 시간(연장 포함) <span class="slider-value" id="newGameMaxMinutesVal">60분</span></label>
+      <input type="range" class="minutes-slider" id="newGameMaxMinutesSlider" min="5" max="120" step="1" value="60">
+    </div>
+
+    <div class="field">
+      <label>기본 대여 시간 <span class="slider-value" id="newGameMinutesVal">15분</span></label>
+      <input type="range" class="minutes-slider" id="newGameMinutesSlider" min="5" max="120" step="1" value="15">
+    </div>
+
+    <button class="btn btn-primary btn-big" id="confirmAddGameBtn">
+      <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="5 13 10 18 19 7"/></svg>
+      <span id="confirmAddGameBtnText">추가하기</span>
+    </button>
+  </div>
+</div>
+
+<!-- ================= 쉬는 시간 설정 모달 ================= -->
+<div class="overlay" id="recessSettingsModal" hidden>
+  <div class="modal">
+    <button class="modal-close" data-close>
+      <svg class="icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+    </button>
+    <h2>쉬는 시간 설정</h2>
+
+    <div class="field">
+      <label>쉬는 시간 종료 시각</label>
+      <input type="time" class="time-input" id="recessEndTimeInput">
+    </div>
+
+    <div class="field">
+      <label>수업 준비 알림 시작 시각</label>
+      <input type="time" class="time-input" id="recessAlertTimeInput">
+    </div>
+
+    <div class="field">
+      <label>수업 준비 알림 문구</label>
+      <div class="name-input">
+        <svg class="icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1-4.2L15.8 5a1.6 1.6 0 0 1 2.3 0l1 1a1.6 1.6 0 0 1 0 2.3L8.2 19 4 20z"/><line x1="14.2" y1="6.7" x2="17.3" y2="9.8"/></svg>
+        <input type="text" id="recessMessageInput" placeholder="예: 4교시 수업 준비하세요" autocomplete="off">
+        <button class="field-kb-btn" id="openRecessMessageKeyboardBtn" type="button" title="터치 키보드로 입력">
+          <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><line x1="6.5" y1="9" x2="6.5" y2="9"/><line x1="10" y1="9" x2="10" y2="9"/><line x1="13.5" y1="9" x2="13.5" y2="9"/><line x1="17" y1="9" x2="17" y2="9"/><line x1="6.5" y1="12.5" x2="6.5" y2="12.5"/><line x1="10" y1="12.5" x2="10" y2="12.5"/><line x1="13.5" y1="12.5" x2="13.5" y2="12.5"/><line x1="17" y1="12.5" x2="17" y2="12.5"/><line x1="7" y1="16" x2="17" y2="16"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <button class="btn btn-primary btn-big" id="startRecessBtn">
+      <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="5 13 10 18 19 7"/></svg>
+      저장하기
+    </button>
+  </div>
+</div>
+
+<!-- ================= 삭제 PIN 확인 ================= -->
+<div class="overlay" id="pinModal" hidden>
+  <div class="modal modal-small">
+    <button class="modal-close" data-close>
+      <svg class="icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+    </button>
+    <h2>선생님 확인</h2>
+    <p class="field-hint">선생님만 할 수 있는 기능이에요. PIN 번호를 입력해주세요.</p>
+
+    <div class="field">
+      <input type="password" class="pin-input" id="pinInput" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off">
+    </div>
+
+    <button class="btn btn-primary btn-big" id="confirmPinBtn">
+      <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="5 13 10 18 19 7"/></svg>
+      확인
+    </button>
+  </div>
+</div>
+
+<!-- ================= 대여 통계 ================= -->
+<div class="overlay" id="statsModal" hidden>
+  <div class="modal">
+    <button class="modal-close" data-close>
+      <svg class="icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+    </button>
+    <h2>대여 통계</h2>
+
+    <div class="stats-summary">
+      <div class="stats-summary-item">
+        <div class="stats-summary-value" id="statsTodayCount">0</div>
+        <div class="stats-summary-label">오늘 대여 횟수</div>
+      </div>
+      <div class="stats-summary-item">
+        <div class="stats-summary-value" id="statsTotalCount">0</div>
+        <div class="stats-summary-label">전체 대여 횟수</div>
+      </div>
+    </div>
+
+    <h3 class="stats-subtitle">인기 게임 TOP 5</h3>
+    <div class="stats-rank-list" id="statsRankList"></div>
+
+    <h3 class="stats-subtitle">최근 대여 기록</h3>
+    <div class="stats-history-list" id="statsHistoryList"></div>
+  </div>
+</div>
+
+<!-- ================= 가상 키보드 ================= -->
+<div class="overlay overlay-bottom" id="keyboardModal" hidden>
+  <div class="keyboard-panel">
+    <div class="keyboard-header">
+      <div class="keyboard-preview" id="keyboardPreview"></div>
+      <button class="modal-close" data-close>
+        <svg class="icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="keyboard-tabs">
+      <button class="kb-tab active" data-mode="ko">한글</button>
+      <button class="kb-tab" data-mode="num">숫자</button>
+    </div>
+    <div class="keyboard-body" id="keyboardBody"></div>
+    <div class="keyboard-actions">
+      <button class="btn kb-action" id="kbSpaceBtn">
+        <svg class="icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="9" width="16" height="6" rx="1.5"/></svg>
+        띄어쓰기
+      </button>
+      <button class="btn kb-action" id="kbBackspaceBtn">
+        <svg class="icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h10a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 18H9l-5-6z"/><line x1="12" y1="9.5" x2="16.5" y2="14.5"/><line x1="16.5" y1="9.5" x2="12" y2="14.5"/></svg>
+        지우기
+      </button>
+      <button class="btn kb-action" id="kbClearBtn">
+        <svg class="icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M6.5 7l.8 12a1.5 1.5 0 0 0 1.5 1.4h6.4a1.5 1.5 0 0 0 1.5-1.4L18 7"/></svg>
+        전체 지우기
+      </button>
+      <button class="btn btn-primary kb-action" id="kbDoneBtn">
+        <svg class="icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="5 13 10 18 19 7"/></svg>
+        완료
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 알림 토스트 -->
+<div class="toast" id="toast" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
