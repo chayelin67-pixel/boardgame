@@ -18,13 +18,13 @@ const DEFAULT_RECESS_MESSAGE = '4교시 수업 준비하세요';
 const COVER_CLASSES = ['cv-0', 'cv-1', 'cv-2', 'cv-3', 'cv-4', 'cv-5', 'cv-6', 'cv-7'];
 
 const DEFAULT_GAMES = [
-  { id: 'g_halligalli', name: '할리갈리',   minutes: 10, maxMinutes: 60, cover: COVER_CLASSES[0], builtin: true },
-  { id: 'g_rummikub',   name: '루미큐브',   minutes: 20, maxMinutes: 60, cover: COVER_CLASSES[1], builtin: true },
-  { id: 'g_jenga',      name: '젠가',       minutes: 15, maxMinutes: 60, cover: COVER_CLASSES[2], builtin: true },
-  { id: 'g_bluemarble', name: '부루마블',   minutes: 30, maxMinutes: 60, cover: COVER_CLASSES[3], builtin: true },
-  { id: 'g_dobble',     name: '도블',       minutes: 10, maxMinutes: 60, cover: COVER_CLASSES[4], builtin: true },
-  { id: 'g_uno',        name: '우노',       minutes: 15, maxMinutes: 60, cover: COVER_CLASSES[5], builtin: true },
-  { id: 'g_davinci',    name: '다빈치코드', minutes: 15, maxMinutes: 60, cover: COVER_CLASSES[6], builtin: true },
+  { id: 'g_halligalli', name: '할리갈리',   minutes: 10, maxMinutes: 30, cover: COVER_CLASSES[0], builtin: true },
+  { id: 'g_rummikub',   name: '루미큐브',   minutes: 20, maxMinutes: 30, cover: COVER_CLASSES[1], builtin: true },
+  { id: 'g_jenga',      name: '젠가',       minutes: 15, maxMinutes: 30, cover: COVER_CLASSES[2], builtin: true },
+  { id: 'g_bluemarble', name: '부루마블',   minutes: 30, maxMinutes: 30, cover: COVER_CLASSES[3], builtin: true },
+  { id: 'g_dobble',     name: '도블',       minutes: 10, maxMinutes: 30, cover: COVER_CLASSES[4], builtin: true },
+  { id: 'g_uno',        name: '우노',       minutes: 15, maxMinutes: 30, cover: COVER_CLASSES[5], builtin: true },
+  { id: 'g_davinci',    name: '다빈치코드', minutes: 15, maxMinutes: 30, cover: COVER_CLASSES[6], builtin: true },
 ];
 
 const GROUP_NAMES = ['1모둠','2모둠','3모둠','4모둠','5모둠','6모둠'];
@@ -33,9 +33,9 @@ const MAX_RENT_NUMBERS = 5;
 
 const EXTEND_MINUTES = 10;
 const MIN_MINUTES = 5;
-const MAX_MINUTES = 60; // 게임별 maxMinutes가 없을 때의 기본값
+const MAX_MINUTES = 30; // 게임별 maxMinutes가 없을 때의 기본값
 const STEP_MINUTES = 5;
-const SLIDER_MAX_CAP = 120; // 관리자가 설정 가능한 최대 대여 시간 슬라이더 상한
+const SLIDER_MAX_CAP = 30; // 관리자가 설정 가능한 최대 대여 시간 슬라이더 상한
 
 function getGameMaxMinutes(game) {
   return (game && game.maxMinutes) || MAX_MINUTES;
@@ -624,6 +624,11 @@ function openRentModal(gameId) {
     chip.className = 'preset-chip';
     chip.textContent = name;
     chip.addEventListener('click', () => {
+      if (pendingRentGroup === name) {
+        pendingRentGroup = null;
+        chip.classList.remove('selected');
+        return;
+      }
       pendingRentGroup = name;
       groupRow.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('selected'));
       chip.classList.add('selected');
