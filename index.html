@@ -247,6 +247,13 @@
       <input type="range" class="minutes-slider" id="overduePenaltyMinutesSlider" min="0" max="60" step="5" value="10">
     </div>
 
+    <p class="field-hint">선생님 PIN을 바꾸면 다음 확인부터 새 PIN을 입력해야 해요. 비워두면 기존 PIN이 유지돼요.</p>
+
+    <div class="field">
+      <label>선생님 PIN 변경 (숫자 4자리)</label>
+      <input type="password" class="pin-input" id="newAdminPinInput" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off">
+    </div>
+
     <button class="btn btn-primary btn-big" id="saveAdminConfigBtn">
       <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="5 13 10 18 19 7"/></svg>
       저장하기

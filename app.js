@@ -11,6 +11,7 @@ const STORAGE_KEY_RECESS = 'bgrental_recess_v1';
 const STORAGE_KEY_HISTORY = 'bgrental_history_v1';
 const STORAGE_KEY_CONFIG = 'bgrental_config_v1';
 const STORAGE_KEY_PENALTIES = 'bgrental_penalties_v1';
+const STORAGE_KEY_LAST_ACTIVE_DATE = 'bgrental_last_active_date_v1';
 const MAX_HISTORY_ENTRIES = 300;
 
 const DEFAULT_RECESS_END_TIME = '12:30';
@@ -20,6 +21,7 @@ const DEFAULT_RECESS_MESSAGE = '4교시 수업 준비하세요';
 const DEFAULT_OVERDUE_PENALTY_MINUTES = 10;
 const DEFAULT_GROUP_COUNT = 6;
 const DEFAULT_STUDENT_COUNT = 25;
+const DEFAULT_ADMIN_PIN = '2026';
 
 const COVER_CLASSES = ['cv-0', 'cv-1', 'cv-2', 'cv-3', 'cv-4', 'cv-5', 'cv-6', 'cv-7'];
 
@@ -52,8 +54,6 @@ function getGameMaxMinutes(game) {
   return (game && game.maxMinutes) || MAX_MINUTES;
 }
 
-const ADMIN_PIN = '2026';
-
 /* ------------------------- 아이콘 ------------------------- */
 
 const ICON_PATHS = {
@@ -77,6 +77,7 @@ let recess = loadRecess();
 let history = loadHistory();
 let config = loadConfig();
 let penalties = loadPenalties();
+resetDailyStateIfNewDay();
 let currentFilter = 'all';
 let searchQuery = '';
 
@@ -147,6 +148,7 @@ function loadConfig() {
     overduePenaltyMinutes: DEFAULT_OVERDUE_PENALTY_MINUTES,
     groupCount: DEFAULT_GROUP_COUNT,
     studentCount: DEFAULT_STUDENT_COUNT,
+    adminPin: DEFAULT_ADMIN_PIN,
   };
   try {
     const raw = localStorage.getItem(STORAGE_KEY_CONFIG);
@@ -169,6 +171,24 @@ function loadPenalties() {
 
 function savePenalties() {
   try { localStorage.setItem(STORAGE_KEY_PENALTIES, JSON.stringify(penalties)); } catch (e) {}
+}
+
+function todayDateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function resetDailyStateIfNewDay() {
+  const today = todayDateStr();
+  let lastActiveDate = null;
+  try { lastActiveDate = localStorage.getItem(STORAGE_KEY_LAST_ACTIVE_DATE); } catch (e) {}
+  if (lastActiveDate === today) return;
+
+  rentals = {};
+  penalties = { groups: {}, numbers: {} };
+  saveRentals();
+  savePenalties();
+  try { localStorage.setItem(STORAGE_KEY_LAST_ACTIVE_DATE, today); } catch (e) {}
 }
 
 function todayAt(hhmm) {
@@ -1045,6 +1065,8 @@ function openAdminConfigModal() {
   studentSlider.value = config.studentCount;
   document.getElementById('studentCountVal').textContent = `${config.studentCount}번`;
 
+  document.getElementById('newAdminPinInput').value = '';
+
   document.getElementById('adminConfigModal').hidden = false;
 }
 
@@ -1065,12 +1087,19 @@ document.getElementById('studentCountSlider').addEventListener('input', (e) => {
 });
 
 document.getElementById('saveAdminConfigBtn').addEventListener('click', () => {
+  const newPin = document.getElementById('newAdminPinInput').value;
+  if (newPin && !/^\d{4}$/.test(newPin)) {
+    showToast('PIN은 숫자 4자리로 입력해주세요');
+    return;
+  }
+
   config.overduePenaltyMinutes = Number(document.getElementById('overduePenaltyMinutesSlider').value);
   config.groupCount = Number(document.getElementById('groupCountSlider').value);
   config.studentCount = Number(document.getElementById('studentCountSlider').value);
+  if (newPin) config.adminPin = newPin;
   saveConfig();
   closeAllModals();
-  showToast('설정을 저장했어요!');
+  showToast(newPin ? '설정과 새 PIN을 저장했어요!' : '설정을 저장했어요!');
 });
 
 /* ------------------------- 대여 통계 ------------------------- */
@@ -1265,7 +1294,7 @@ function deleteGame(gameId) {
 
 function confirmPinAndProceed() {
   const pinInput = document.getElementById('pinInput');
-  if (pinInput.value !== ADMIN_PIN) {
+  if (pinInput.value !== config.adminPin) {
     showToast('PIN이 올바르지 않아요');
     pinInput.value = '';
     pinInput.focus();
