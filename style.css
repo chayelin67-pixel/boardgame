@@ -298,6 +298,14 @@ input { font-family: inherit; }
   transition: transform .15s, box-shadow .15s;
 }
 .card:active { transform: scale(0.98); }
+.card.rented::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(228,87,79,0.22);
+  pointer-events: none;
+  z-index: 1;
+}
 
 .card-cover {
   height: 200px;
@@ -356,8 +364,6 @@ input { font-family: inherit; }
 .badge-available .badge-dot { background: var(--success); }
 .badge-rented { background: var(--danger-soft); color: var(--danger); }
 .badge-rented .badge-dot { background: var(--danger); }
-.badge-extended { background: var(--warning-soft); color: var(--warning); }
-.badge-overdue { background: var(--danger); color: #fff; }
 
 .rent-btn {
   margin-top: auto;
@@ -418,8 +424,6 @@ input { font-family: inherit; }
   border-radius: var(--radius-md);
   color: #fff;
 }
-.extend-btn { background: var(--warning); }
-.extend-btn:disabled { background: var(--paper); color: var(--ink-faint); }
 .return-btn { background: var(--danger); }
 .action-btn:active { transform: scale(0.96); }
 
@@ -601,6 +605,8 @@ input { font-family: inherit; }
   color: var(--accent);
 }
 .preset-chip.selected { background: var(--accent); color: #fff; }
+.preset-chip.chip-blocked { background: var(--paper); color: var(--ink-faint); opacity: 0.55; }
+.preset-chip.chip-blocked:active { transform: none; }
 
 .name-input {
   width: 100%;

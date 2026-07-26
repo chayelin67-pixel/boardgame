@@ -1,5 +1,5 @@
 /* =====================================================================
-   보드게임 대여소 - app.js
+   보드게임 대여공간 - app.js
    전자칠판(터치스크린) 초등학생용 보드게임 대여/반납 프로그램
    ===================================================================== */
 
@@ -9,11 +9,17 @@ const STORAGE_KEY_GAMES = 'bgrental_games_v1';
 const STORAGE_KEY_RENTALS = 'bgrental_rentals_v1';
 const STORAGE_KEY_RECESS = 'bgrental_recess_v1';
 const STORAGE_KEY_HISTORY = 'bgrental_history_v1';
+const STORAGE_KEY_CONFIG = 'bgrental_config_v1';
+const STORAGE_KEY_PENALTIES = 'bgrental_penalties_v1';
 const MAX_HISTORY_ENTRIES = 300;
 
 const DEFAULT_RECESS_END_TIME = '12:30';
 const DEFAULT_RECESS_ALERT_TIME = '12:25';
 const DEFAULT_RECESS_MESSAGE = '4교시 수업 준비하세요';
+
+const DEFAULT_OVERDUE_PENALTY_MINUTES = 10;
+const DEFAULT_GROUP_COUNT = 6;
+const DEFAULT_STUDENT_COUNT = 25;
 
 const COVER_CLASSES = ['cv-0', 'cv-1', 'cv-2', 'cv-3', 'cv-4', 'cv-5', 'cv-6', 'cv-7'];
 
@@ -27,11 +33,16 @@ const DEFAULT_GAMES = [
   { id: 'g_davinci',    name: '다빈치코드', minutes: 15, maxMinutes: 30, cover: COVER_CLASSES[6], builtin: true },
 ];
 
-const GROUP_NAMES = ['1모둠','2모둠','3모둠','4모둠','5모둠','6모둠'];
-const NUMBER_OPTIONS = Array.from({ length: 25 }, (_, i) => i + 1);
 const MAX_RENT_NUMBERS = 5;
 
-const EXTEND_MINUTES = 10;
+function getGroupNames() {
+  return Array.from({ length: config.groupCount }, (_, i) => `${i + 1}모둠`);
+}
+
+function getNumberOptions() {
+  return Array.from({ length: config.studentCount }, (_, i) => i + 1);
+}
+
 const MIN_MINUTES = 5;
 const MAX_MINUTES = 30; // 게임별 maxMinutes가 없을 때의 기본값
 const STEP_MINUTES = 5;
@@ -50,7 +61,6 @@ const ICON_PATHS = {
   users: '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c0-3.3 2.5-5.5 5.5-5.5s5.5 2.2 5.5 5.5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.8 13.6c2.4.3 4 2.2 4 5.4"/>',
   undo: '<path d="M7 7L4 10l3 3"/><path d="M4 10h11a4.5 4.5 0 0 1 0 9H10"/>',
   trash: '<path d="M5 7h14"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M6.5 7l.8 12a1.5 1.5 0 0 0 1.5 1.4h6.4a1.5 1.5 0 0 0 1.5-1.4L18 7"/>',
-  alert: '<path d="M12 4.5l8.5 14.5H3.5z"/><line x1="12" y1="10" x2="12" y2="13.5"/><circle cx="12" cy="16.3" r="0.2" fill="currentColor" stroke="none"/>',
   edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
 };
 
@@ -65,6 +75,8 @@ let games = loadGames();
 let rentals = loadRentals();
 let recess = loadRecess();
 let history = loadHistory();
+let config = loadConfig();
+let penalties = loadPenalties();
 let currentFilter = 'all';
 let searchQuery = '';
 
@@ -128,6 +140,35 @@ function loadRecess() {
 
 function saveRecess() {
   try { localStorage.setItem(STORAGE_KEY_RECESS, JSON.stringify(recess)); } catch (e) {}
+}
+
+function loadConfig() {
+  const defaults = {
+    overduePenaltyMinutes: DEFAULT_OVERDUE_PENALTY_MINUTES,
+    groupCount: DEFAULT_GROUP_COUNT,
+    studentCount: DEFAULT_STUDENT_COUNT,
+  };
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_CONFIG);
+    if (raw) return Object.assign(defaults, JSON.parse(raw));
+  } catch (e) {}
+  return defaults;
+}
+
+function saveConfig() {
+  try { localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(config)); } catch (e) {}
+}
+
+function loadPenalties() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_PENALTIES);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return { groups: {}, numbers: {} };
+}
+
+function savePenalties() {
+  try { localStorage.setItem(STORAGE_KEY_PENALTIES, JSON.stringify(penalties)); } catch (e) {}
 }
 
 function todayAt(hhmm) {
@@ -322,11 +363,10 @@ function formatClock(ms) {
 function formatRemainingLong(ms) {
   const totalSec = Math.max(0, Math.ceil(ms / 1000));
   const h = Math.floor(totalSec / 3600);
-  if (h > 0) {
-    const m = Math.floor((totalSec % 3600) / 60);
-    return `${h}시간 ${m}분`;
-  }
-  return formatClock(ms);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${h}시간 ${m}분 ${s}초`;
+  return `${m}분 ${s}초`;
 }
 
 function showToast(msg) {
@@ -338,6 +378,54 @@ function showToast(msg) {
 }
 
 function findGame(id) { return games.find(g => g.id === id); }
+
+/* ------------------------- 대여 제한 (1인/1모둠 1게임) ------------------------- */
+
+function getActiveRenterSets(excludeGameId) {
+  const groups = new Set();
+  const numbers = new Set();
+  Object.keys(rentals).forEach(gameId => {
+    if (gameId === excludeGameId) return;
+    const r = rentals[gameId];
+    if (!r || r.status !== 'rented') return;
+    if (r.renterGroup) groups.add(r.renterGroup);
+    (r.renterNumbers || []).forEach(n => numbers.add(n));
+  });
+  return { groups, numbers };
+}
+
+/* ------------------------- 연체 재대여 제한 (페널티) ------------------------- */
+
+function cleanupExpiredPenalties() {
+  const now = Date.now();
+  let changed = false;
+  Object.keys(penalties.groups).forEach(name => {
+    if (penalties.groups[name] <= now) { delete penalties.groups[name]; changed = true; }
+  });
+  Object.keys(penalties.numbers).forEach(num => {
+    if (penalties.numbers[num] <= now) { delete penalties.numbers[num]; changed = true; }
+  });
+  if (changed) savePenalties();
+}
+
+function getGroupPenaltyRemainingMs(name) {
+  const until = penalties.groups[name];
+  return until ? Math.max(0, until - Date.now()) : 0;
+}
+
+function getNumberPenaltyRemainingMs(num) {
+  const until = penalties.numbers[num];
+  return until ? Math.max(0, until - Date.now()) : 0;
+}
+
+function applyOverduePenalty(rental) {
+  const minutes = config.overduePenaltyMinutes || 0;
+  if (minutes <= 0) return;
+  const until = Date.now() + minutes * 60 * 1000;
+  if (rental.renterGroup) penalties.groups[rental.renterGroup] = until;
+  (rental.renterNumbers || []).forEach(n => { penalties.numbers[n] = until; });
+  savePenalties();
+}
 
 /* ------------------------- 렌더링 ------------------------- */
 
@@ -366,7 +454,7 @@ function buildCard(game) {
   const isRented = rental && rental.status === 'rented';
 
   const card = document.createElement('div');
-  card.className = 'card';
+  card.className = 'card' + (isRented ? ' rented' : '');
   card.dataset.gameId = game.id;
 
   const cover = document.createElement('div');
@@ -434,18 +522,6 @@ function buildCard(game) {
     badge.className = 'badge badge-rented';
     badge.innerHTML = '<span class="badge-dot"></span>대여중';
     badgeRow.appendChild(badge);
-    if (rental.extended) {
-      const ext = document.createElement('div');
-      ext.className = 'badge badge-extended';
-      ext.innerHTML = `${icon('clock', 12)}연장 완료`;
-      badgeRow.appendChild(ext);
-    }
-    const overdueBadge = document.createElement('div');
-    overdueBadge.className = 'badge badge-overdue';
-    overdueBadge.dataset.role = 'overdue-badge';
-    overdueBadge.innerHTML = `${icon('alert', 12)}미반납`;
-    overdueBadge.hidden = true;
-    badgeRow.appendChild(overdueBadge);
     body.appendChild(badgeRow);
 
     const renterRow = document.createElement('div');
@@ -471,17 +547,10 @@ function buildCard(game) {
     const actionRow = document.createElement('div');
     actionRow.className = 'action-row';
 
-    const extendBtn = document.createElement('button');
-    extendBtn.className = 'action-btn extend-btn';
-    extendBtn.innerHTML = `${icon('clock', 15)}${EXTEND_MINUTES}분 연장`;
-    extendBtn.disabled = !!rental.extended;
-    extendBtn.addEventListener('click', () => extendRental(game.id));
-    actionRow.appendChild(extendBtn);
-
     const returnBtn = document.createElement('button');
     returnBtn.className = 'action-btn return-btn';
     returnBtn.innerHTML = `${icon('undo', 15)}반납하기`;
-    returnBtn.addEventListener('click', () => returnRental(game.id));
+    returnBtn.addEventListener('click', () => openReturnConfirmModal(game.id));
     actionRow.appendChild(returnBtn);
 
     body.appendChild(actionRow);
@@ -512,17 +581,14 @@ function tickTimers() {
 
     const timerEl = card.querySelector('[data-role="timer"]');
     const fillEl = card.querySelector('[data-role="progress"]');
-    const overdueBadgeEl = card.querySelector('[data-role="overdue-badge"]');
 
     card.classList.remove('warn', 'danger', 'overdue');
-    if (overdueBadgeEl) overdueBadgeEl.hidden = true;
 
     if (remaining <= 0) {
       const overdueMinutes = Math.floor(-remaining / 60000);
       if (timerEl) timerEl.textContent = overdueMinutes > 0 ? `${overdueMinutes}분 초과!` : '시간 종료!';
       if (fillEl) fillEl.style.width = '0%';
       card.classList.add('overdue', 'danger');
-      if (overdueBadgeEl) overdueBadgeEl.hidden = false;
 
       if (!rental._overdueNotified) {
         rental._overdueNotified = true;
@@ -555,7 +621,7 @@ function tickRecess() {
   const endAt = todayAt(recess.endTime);
   const alertAt = todayAt(recess.alertTime);
   const remaining = endAt - now;
-  const isAlert = now >= alertAt;
+  const isAlert = now >= alertAt && now <= endAt;
 
   const countdownEl = document.getElementById('recessCountdown');
   const alertEl = document.getElementById('recessAlert');
@@ -570,19 +636,22 @@ function tickRecess() {
     recess._warned = true;
     playWarnBeep();
   }
-  if (remaining <= 0 && !recess._ended) {
+  if (now >= endAt && !recess._ended) {
     recess._ended = true;
     playOverdueBeep();
   }
-  if (!isAlert) {
+  if (now < alertAt) {
     recess._warned = false;
     recess._ended = false;
   }
 }
 
 function tick() {
-  document.getElementById('recessClock').textContent =
-    new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const now = new Date();
+  const h = now.getHours();
+  const period = h < 12 ? '오전' : '오후';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  document.getElementById('recessClock').textContent = `${period} ${h12}시 ${now.getMinutes()}분`;
   tickRecess();
   tickTimers();
 }
@@ -617,13 +686,26 @@ function openRentModal(gameId) {
 
   document.getElementById('rentMinutesVal').textContent = `${pendingRentMinutes}분`;
 
+  cleanupExpiredPenalties();
+  const activeSets = getActiveRenterSets(gameId);
+
   const groupRow = document.getElementById('groupRow');
   groupRow.innerHTML = '';
-  GROUP_NAMES.forEach(name => {
+  getGroupNames().forEach(name => {
     const chip = document.createElement('button');
     chip.className = 'preset-chip';
     chip.textContent = name;
+    const rentedElsewhere = activeSets.groups.has(name);
+    const penaltyMs = getGroupPenaltyRemainingMs(name);
+    const blocked = rentedElsewhere || penaltyMs > 0;
+    if (blocked) chip.classList.add('chip-blocked');
     chip.addEventListener('click', () => {
+      if (blocked) {
+        showToast(rentedElsewhere
+          ? `${name}은(는) 이미 다른 게임을 대여 중이에요`
+          : `${name}은(는) 연체 페널티로 ${Math.ceil(penaltyMs / 60000)}분 후에 대여할 수 있어요`);
+        return;
+      }
       if (pendingRentGroup === name) {
         pendingRentGroup = null;
         chip.classList.remove('selected');
@@ -636,13 +718,26 @@ function openRentModal(gameId) {
     groupRow.appendChild(chip);
   });
 
+  const numberRowLabel = document.getElementById('numberRowLabel');
+  if (numberRowLabel) numberRowLabel.textContent = `번호 선택 (1~${config.studentCount}번 중 최대 ${MAX_RENT_NUMBERS}명)`;
+
   const numberRow = document.getElementById('numberRow');
   numberRow.innerHTML = '';
-  NUMBER_OPTIONS.forEach(num => {
+  getNumberOptions().forEach(num => {
     const chip = document.createElement('button');
     chip.className = 'preset-chip';
     chip.textContent = `${num}번`;
+    const rentedElsewhere = activeSets.numbers.has(num);
+    const penaltyMs = getNumberPenaltyRemainingMs(num);
+    const blocked = rentedElsewhere || penaltyMs > 0;
+    if (blocked) chip.classList.add('chip-blocked');
     chip.addEventListener('click', () => {
+      if (blocked) {
+        showToast(rentedElsewhere
+          ? `${num}번은 이미 다른 게임을 대여 중이에요`
+          : `${num}번은 연체 페널티로 ${Math.ceil(penaltyMs / 60000)}분 후에 대여할 수 있어요`);
+        return;
+      }
       const idx = pendingRentNumbers.indexOf(num);
       if (idx === -1) {
         if (pendingRentNumbers.length >= MAX_RENT_NUMBERS) {
@@ -681,6 +776,19 @@ document.getElementById('confirmRentBtn').addEventListener('click', () => {
     showToast('모둠 또는 번호를 선택해주세요!');
     return;
   }
+
+  cleanupExpiredPenalties();
+  const activeSets = getActiveRenterSets(pendingRentGameId);
+  if (pendingRentGroup && (activeSets.groups.has(pendingRentGroup) || getGroupPenaltyRemainingMs(pendingRentGroup) > 0)) {
+    showToast(`${pendingRentGroup}은(는) 지금 대여할 수 없어요`);
+    return;
+  }
+  const blockedNumber = pendingRentNumbers.find(n => activeSets.numbers.has(n) || getNumberPenaltyRemainingMs(n) > 0);
+  if (blockedNumber != null) {
+    showToast(`${blockedNumber}번은 지금 대여할 수 없어요`);
+    return;
+  }
+
   const sortedNumbers = pendingRentNumbers.slice().sort((a, b) => a - b);
   const renter = pendingRentGroup && sortedNumbers.length > 0
     ? `${pendingRentGroup} ${sortedNumbers.join(', ')}번`
@@ -692,10 +800,11 @@ document.getElementById('confirmRentBtn').addEventListener('click', () => {
   rentals[pendingRentGameId] = {
     status: 'rented',
     renter,
+    renterGroup: pendingRentGroup,
+    renterNumbers: sortedNumbers,
     startAt: now,
     endAt: now + totalMs,
     totalMs: totalMs,
-    extended: false,
   };
   saveRentals();
   closeAllModals();
@@ -704,47 +813,52 @@ document.getElementById('confirmRentBtn').addEventListener('click', () => {
   showToast('대여를 시작했어요! 재미있게 즐겨요');
 });
 
-function extendRental(gameId) {
-  const rental = rentals[gameId];
-  if (!rental || rental.status !== 'rented' || rental.extended) return;
-  const game = findGame(gameId);
-  const maxTotalMs = getGameMaxMinutes(game) * 60 * 1000;
-  const currentTotalMs = rental.totalMs || (rental.endAt - rental.startAt);
-  if (currentTotalMs >= maxTotalMs) {
-    showToast('이 게임은 최대 대여 시간에 도달해서 더 연장할 수 없어요');
-    return;
-  }
-  const extraMs = Math.min(EXTEND_MINUTES * 60 * 1000, maxTotalMs - currentTotalMs);
-  rental.endAt += extraMs;
-  rental.totalMs = currentTotalMs + extraMs;
-  rental.extended = true;
-  rental._overdueNotified = false;
-  rental._dangerNotified = false;
-  saveRentals();
-  renderGrid();
-  showToast(`${Math.round(extraMs / 60000)}분 연장되었어요!`);
+let pendingReturnGameId = null;
+
+function openReturnConfirmModal(gameId) {
+  pendingReturnGameId = gameId;
+  document.getElementById('returnConfirmModal').hidden = false;
 }
+
+document.getElementById('confirmReturnBtn').addEventListener('click', () => {
+  if (!pendingReturnGameId) return;
+  const gameId = pendingReturnGameId;
+  pendingReturnGameId = null;
+  closeAllModals();
+  returnRental(gameId);
+});
 
 function returnRental(gameId) {
   const rental = rentals[gameId];
   if (!rental) return;
+  const now = Date.now();
+  const wasOverdue = now > rental.endAt;
   const game = games.find(g => g.id === gameId);
   history.push({
     gameId,
     gameName: game ? game.name : '알 수 없음',
     renter: rental.renter || '',
     startAt: rental.startAt,
-    returnedAt: Date.now(),
+    returnedAt: now,
+    overdue: wasOverdue,
   });
   if (history.length > MAX_HISTORY_ENTRIES) {
     history = history.slice(history.length - MAX_HISTORY_ENTRIES);
   }
   saveHistory();
+
+  if (wasOverdue) applyOverduePenalty(rental);
+
   delete rentals[gameId];
   saveRentals();
   renderGrid();
   playReturnChime();
-  showToast('반납 완료! 다음 친구가 빌릴 수 있어요');
+
+  if (wasOverdue && config.overduePenaltyMinutes > 0) {
+    showToast(`반납 완료! 연체로 인해 ${config.overduePenaltyMinutes}분 동안 재대여가 제한돼요`);
+  } else {
+    showToast('반납 완료! 다음 친구가 빌릴 수 있어요');
+  }
 }
 
 /* ------------------------- 게임 추가 / 수정 ------------------------- */
@@ -914,6 +1028,49 @@ document.getElementById('startRecessBtn').addEventListener('click', () => {
   closeAllModals();
   tickRecess();
   showToast('쉬는 시간 설정을 저장했어요!');
+});
+
+/* ------------------------- 설정 (관리자) ------------------------- */
+
+function openAdminConfigModal() {
+  const penaltySlider = document.getElementById('overduePenaltyMinutesSlider');
+  penaltySlider.value = config.overduePenaltyMinutes;
+  document.getElementById('overduePenaltyMinutesVal').textContent = `${config.overduePenaltyMinutes}분`;
+
+  const groupSlider = document.getElementById('groupCountSlider');
+  groupSlider.value = config.groupCount;
+  document.getElementById('groupCountVal').textContent = `${config.groupCount}모둠`;
+
+  const studentSlider = document.getElementById('studentCountSlider');
+  studentSlider.value = config.studentCount;
+  document.getElementById('studentCountVal').textContent = `${config.studentCount}번`;
+
+  document.getElementById('adminConfigModal').hidden = false;
+}
+
+document.getElementById('openAdminConfigBtn').addEventListener('click', () => {
+  requireAdminPin(openAdminConfigModal);
+});
+
+document.getElementById('overduePenaltyMinutesSlider').addEventListener('input', (e) => {
+  document.getElementById('overduePenaltyMinutesVal').textContent = `${e.target.value}분`;
+});
+
+document.getElementById('groupCountSlider').addEventListener('input', (e) => {
+  document.getElementById('groupCountVal').textContent = `${e.target.value}모둠`;
+});
+
+document.getElementById('studentCountSlider').addEventListener('input', (e) => {
+  document.getElementById('studentCountVal').textContent = `${e.target.value}번`;
+});
+
+document.getElementById('saveAdminConfigBtn').addEventListener('click', () => {
+  config.overduePenaltyMinutes = Number(document.getElementById('overduePenaltyMinutesSlider').value);
+  config.groupCount = Number(document.getElementById('groupCountSlider').value);
+  config.studentCount = Number(document.getElementById('studentCountSlider').value);
+  saveConfig();
+  closeAllModals();
+  showToast('설정을 저장했어요!');
 });
 
 /* ------------------------- 대여 통계 ------------------------- */
